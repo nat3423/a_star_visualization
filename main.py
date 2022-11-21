@@ -1,11 +1,21 @@
+############
+# Author: Nathaniel Welch
+# Version: 11/21/2022
+# Description: Manages the GUI and execution of the algorithm
+############
+
 import pygame
-import math
-from queue import PriorityQueue
+from Algo import algorithm
+from Node import Node
 
-WIDTH = 800
+WIDTH = 800  # This value is the width of the window to display
+
+# This creates a square window of size WIDTH that can be accessed from many different functions
 WIN = pygame.display.set_mode((WIDTH, WIDTH))
-pygame.display.set_caption("A* Path Finding")
 
+pygame.display.set_caption("A* Path Finding")  # This sets the title of the window
+
+# These tuples allow us to access colors by name
 RED = (255, 0, 0)
 GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
@@ -18,141 +28,7 @@ GREY = (128, 128, 128)
 TURQUOISE = (64, 224, 208)
 
 
-class Node:
-    def __init__(self, row, col, width, total_rows):
-        self.row = row
-        self.col = col
-        self.x = row * width
-        self.y = col * width
-        self.color = WHITE
-        self.neighbors = []
-        self.width = width
-        self.total_rows = total_rows
-
-    def get_pos(self):
-        return self.row, self.col
-
-    def is_closed(self):
-        return self.color == RED
-
-    def is_open(self):
-        return self.color == GREEN
-
-    def is_blocked(self):
-        return self.color == BLACK
-
-    def is_start(self):
-        return self.color == ORANGE
-
-    def is_end(self):
-        return self.color == TURQUOISE
-
-    def is_path(self):
-        return self.color == PURPLE
-
-    def reset(self):
-        self.color = WHITE
-
-    def make_closed(self):
-        self.color = RED
-
-    def make_open(self):
-        self.color = GREEN
-
-    def make_blocked(self):
-        self.color = BLACK
-
-    def make_start(self):
-        self.color = ORANGE
-
-    def make_end(self):
-        self.color = TURQUOISE
-
-    def make_path(self):
-        self.color = PURPLE
-
-    def draw(self, win):
-        pygame.draw.rect(win, self.color, (self.x, self.y, self.width, self.width))
-
-    def update_neighbors(self, grid):
-        self.neighbors = []
-        if self.row < self.total_rows - 1 and not grid[self.row + 1][self.col].is_blocked():  # Down
-            self.neighbors.append(grid[self.row + 1][self.col])
-
-        if self.row > 0 and not grid[self.row - 1][self.col].is_blocked():  # Up
-            self.neighbors.append(grid[self.row - 1][self.col])
-
-        if self.col < self.total_rows - 1 and not grid[self.row][self.col + 1].is_blocked():  # Right
-            self.neighbors.append(grid[self.row][self.col + 1])
-
-        if self.col > 0 and not grid[self.row][self.col - 1].is_blocked():  # Left
-            self.neighbors.append(grid[self.row][self.col - 1])
-
-    def __lt__(self, other):
-        return False
-
-
-def h(p1, p2):
-    x1, y1 = p1
-    x2, y2 = p2
-
-    return abs(x1 - x2) + abs(y1 - y2)
-
-
-def reconstruct_path(came_from, current, draw):
-    while current in came_from:
-        current = came_from[current]
-        current.make_path()
-        draw()
-
-
-def algorithm(draw, grid, start, end):
-    count = 0  # We keep track of the count of nodes added to break ties by whichever was considered first
-    open_set = PriorityQueue()  # This is where we pull the next possible node for our path from
-    open_set.put((0, count, start))  # Add the start node to the open set
-    came_from = {}  # Keeps track of how we got to a Node
-    g_score = {node: float("inf") for row in grid for node in row}  # tracks shortest distance from start to current
-    g_score[start] = 0
-    f_score = {node: float("inf") for row in grid for node in row}  # tracks ~ distance from current to end
-    f_score[start] = h(start.get_pos(), end.get_pos())
-
-    open_set_hash = {start}  # tracks what is in the priority queue
-
-    while not open_set.empty():
-        # This allows us to break the loop
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-
-        current = open_set.get()[2]  # gets node from queue
-        open_set_hash.remove(current)  # removes from hash since we take from queue
-
-        if current == end:
-            reconstruct_path(came_from, end, draw)
-            end.make_end()
-            return True
-
-        for neighbor in current.neighbors:
-            temp_g_score = g_score[current] + 1
-
-            if temp_g_score < g_score[neighbor]:
-                came_from[neighbor] = current
-                g_score[neighbor] = temp_g_score
-                f_score[neighbor] = temp_g_score + h(neighbor.get_pos(), end.get_pos())
-                if neighbor not in open_set_hash:
-                    count += 1
-                    open_set.put((f_score[neighbor], count, neighbor))
-                    open_set_hash.add(neighbor)
-                    neighbor.make_open()
-
-        draw()
-
-        if current != start:
-            current.make_closed()
-
-    return False
-
-
+# This function creates a grid of squares based on the window size and number of rows
 def make_grid(rows, width):
     grid = []
     dist = width // rows
@@ -165,6 +41,7 @@ def make_grid(rows, width):
     return grid
 
 
+# This function draws a grid of lines to the window to separate the squares
 def draw_grid(win, rows, width):
     dist = width // rows
     for i in range(rows):
@@ -173,6 +50,7 @@ def draw_grid(win, rows, width):
             pygame.draw.line(win, GREY, (j * dist, 0), (j * dist, width))
 
 
+# This function clears the window and draws the current grid to the window
 def draw(win, grid, rows, width):
     win.fill(WHITE)
 
@@ -184,6 +62,7 @@ def draw(win, grid, rows, width):
     pygame.display.update()
 
 
+# This function calculates which square is hovered over when a click occurs
 def get_clicked_posit(pos, rows, width):
     dist = width // rows
     y, x = pos
@@ -194,35 +73,55 @@ def get_clicked_posit(pos, rows, width):
     return row, col
 
 
+# Main uses the global window and other global variables to draw the inital grid and wait on user input
 def main(win, width):
-    ROWS = 50
-    grid = make_grid(ROWS, width)
+    ROWS = 50 # Default number of rows. Also the number of columns since its a square grid
+    grid = make_grid(ROWS, width) # creates a list of nodes to represent the grid
 
+    # Defaults the start and end for the pathfinding algorithm to None until the user chooses
     start = None
     end = None
 
+    # Loop variable
     run = True
+
+    # Used to control whether user input is allowed
     started = False
 
+    # While we should continue the loop
     while run:
+        # Draw the current grid to the window
         draw(win, grid, ROWS, width)
+        # For every event the window receives
         for event in pygame.event.get():
+            # If the event is to close the window. We exit the loop
             if event.type == pygame.QUIT:
                 run = False
 
+            # If the user clicks
             if pygame.mouse.get_pressed()[0]:
+                # Get the current position of the mouse in the window
                 pos = pygame.mouse.get_pos()
+                # Use the position to determine what square should be affected
                 row, col = get_clicked_posit(pos, ROWS, width)
+                # Get the node representing that square
                 node = grid[row][col]
 
+                # If the start has not been selected, and the selected node is not the end
                 if not start and node != end:
+                    # make it the start node
                     start = node
                     start.make_start()
+                # If the end has not been selected, and the selected node is not the start
                 elif not end and node != start:
+                    # make it the end node
                     end = node
                     end.make_end()
+                # Else if we have selected the end and start, and the selected isnt one of them
                 elif node != end and node != start:
+                    # we set that node to blocked
                     node.make_blocked()
+            # A right click clears the status of a square
             elif pygame.mouse.get_pressed()[2]:
                 pos = pygame.mouse.get_pos()
                 row, col = get_clicked_posit(pos, ROWS, width)
@@ -233,13 +132,16 @@ def main(win, width):
                 elif node == end:
                     end = None
 
+            # If a key was pressed
             if event.type == pygame.KEYDOWN:
+                # if the key was space and we have start and end, then create the graph and run the algorithm
                 if event.key == pygame.K_SPACE and start and end:
                     for row in grid:
                         for node in row:
                             node.update_neighbors(grid)
                     algorithm(lambda: draw(win, grid, ROWS, width), grid, start, end)
 
+                # If the key was 'c', reset everything
                 if event.key == pygame.K_c:
                     start = None
                     end = None
